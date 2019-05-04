@@ -52,10 +52,9 @@ void CalculateSine () {
 
 void Sine () {
   Acc1 = Acc1 + Jump;
-  Acc2 = Acc2 + Jump;
-  Acc2 = Acc2 + 2 * Jump + 20;
+  Acc2 = Acc2 + 3 * Jump + 2;
   OCR0A = Sinewave[Acc1>>8] + 128;
-  OCR0B = Sinewave[((Acc2>>8) + 64) % 256] + 128;
+  OCR0B = Sinewave[Acc2>>8] + 128;
 }
 
 ISR(TIM1_COMPA_vect) {
