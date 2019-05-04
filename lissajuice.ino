@@ -56,72 +56,15 @@ void Sine () {
   OCR0B = Sinewave[Acc>>8] + 128;
 }
 
-void Sawtooth () {
-  Acc = Acc + Jump;
-  OCR1A = Acc >> 8;
-}
-
-void Square () {
-  Acc = Acc + Jump;
-  int8_t temp = Acc>>8;
-  OCR1A = temp>>7;
-}
-
-void Rectangle () {
-  Acc = Acc + Jump;
-  int8_t temp = Acc>>8;
-  temp = temp & temp<<1;
-  OCR1A = temp>>7;
-}
-
-void Triangle () {
-  int8_t temp, mask;
-  Acc = Acc + Jump;
-  temp = Acc>>8;
-  mask = temp>>7;
-  temp = temp ^ mask;
-  OCR1A = temp<<1;
-}
-
-void Chainsaw () {
-  int8_t temp, mask, top;
-  Acc = Acc + Jump;
-  temp = Acc>>8;
-  mask = temp>>7;
-  top = temp & 0x80;
-  temp = (temp ^ mask) | top;
-  OCR1A = temp;
-}
-
-void Pulse () {
-  Acc = Acc + Jump;
-  int8_t temp = Acc>>8;
-  temp = temp & temp<<1 & temp<<2 & temp<<3;
-  OCR1A = temp>>7;
-}
-
-void Noise () {
-  int8_t temp = Acc & 1;
-  Acc = Acc >> 1;
-  if (temp == 0) Acc = Acc ^ 0xB400;
-  OCR1A = Acc;
-}
-
-const int nWaves = 8;
-wavefun_t Waves[nWaves] = {Sine, Triangle, Sawtooth, Square, Rectangle, Pulse, Chainsaw, Noise};
-wavefun_t Wavefun;
-
 ISR(TIM1_COMPA_vect) {
-  Wavefun();
+  Sine();
 }
 
 // Setup **********************************************
 
 void setup() {
-  // Is it a power-on reset?
-  Wave = 0; Freq = 100;
+  Freq = 100;
   CalculateSine();
-  Wavefun = Waves[Wave];
   SetupDDS();
   Jump = Freq*4;
 }
