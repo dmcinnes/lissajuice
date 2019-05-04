@@ -20,7 +20,7 @@ typedef void (*wavefun_t)();
 
 // Direct Digital Synthesis **********************************************
 
-volatile unsigned int Acc, Jump;
+volatile unsigned int Acc1, Acc2, Jump;
 volatile signed int X, Y;
 
 void SetupDDS () {
@@ -51,9 +51,11 @@ void CalculateSine () {
 }
 
 void Sine () {
-  Acc = Acc + Jump;
-  OCR0A = Sinewave[Acc>>8] + 128;
-  OCR0B = Sinewave[Acc>>8] + 128;
+  Acc1 = Acc1 + Jump;
+  Acc2 = Acc2 + Jump;
+  Acc2 = Acc2 + 2 * Jump + 20;
+  OCR0A = Sinewave[Acc1>>8] + 128;
+  OCR0B = Sinewave[((Acc2>>8) + 64) % 256] + 128;
 }
 
 ISR(TIM1_COMPA_vect) {
