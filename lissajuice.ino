@@ -20,7 +20,8 @@ typedef void (*wavefun_t)();
 
 // Direct Digital Synthesis **********************************************
 
-volatile unsigned int Acc1, Acc2, Jump;
+volatile unsigned int Acc1, Acc2, Acc1Freq, Acc2Freq, Jump;
+volatile int Acc2Offset;
 volatile signed int X, Y;
 
 void SetupDDS () {
@@ -52,8 +53,8 @@ void CalculateSine () {
 }
 
 void Sine () {
-  Acc1 = Acc1 + Jump;
-  Acc2 = Acc2 + 3 * Jump + 2;
+  Acc1 = Acc1 + Jump; // * Acc1Freq;
+  Acc2 = Acc2 + Jump * Acc2Freq + Acc2Offset;
   OCR1A = Sinewave[Acc1>>8] + 128;
   OCR1B = Sinewave[Acc2>>8] + 128;
 }
@@ -65,6 +66,8 @@ ISR(TIM0_COMPA_vect) {
 // Setup **********************************************
 
 void setup() {
+  Acc1Freq, Acc2Freq = 1;
+  Acc2Offset = 0;
   Freq = 100;
   CalculateSine();
   SetupDDS();
@@ -73,4 +76,9 @@ void setup() {
 
 // Everything done by interrupts
 void loop() {
+  /* Acc1Freq = analogRead(1) >> 6; */
+  // offset as it's on the reset pin and we need to keep that above ~2.2v
+  Acc2Freq = (analogRead(0) - 675) >> 5;
+  Acc2Offset = (analogRead(3) >> 3) - 64;
+  delay(100);
 }
