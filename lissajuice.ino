@@ -1,6 +1,7 @@
-/* Tiny Function Generator PCB
+/* LissaJuice
 
-   David Johnson-Davies - www.technoblogy.com - 7th February 2019
+   Based on Tiny Function Generator PCB
+   by David Johnson-Davies - www.technoblogy.com - 7th February 2019
    ATtiny85 @ 8 MHz (internal PLL; BOD disabled)
 
    CC BY 4.0
@@ -12,16 +13,24 @@
 #define NOINIT __attribute__ ((section (".noinit")))
 
 // Don't initialise these on reset
-int Wave NOINIT;
 unsigned int Freq NOINIT;
 int8_t Sinewave[256] NOINIT;
 
-typedef void (*wavefun_t)();
+
+const unsigned int ReadingsCount = 10;
+unsigned int readIndex = 0;
+
+unsigned int Acc1FreqReadings[ReadingsCount];
+unsigned int Acc1FreqTotal = 0;
+unsigned int Acc2FreqReadings[ReadingsCount];
+unsigned int Acc2FreqTotal = 0;
+unsigned int Acc2OffsetReadings[ReadingsCount];
+unsigned int Acc2OffsetTotal = 0;
 
 // Direct Digital Synthesis **********************************************
 
-volatile unsigned int Acc1, Acc2, Acc1Freq, Acc2Freq, Jump;
-volatile int Acc2Offset;
+volatile unsigned int Acc1Freq, Acc2Freq, Acc2Offset;
+volatile unsigned int Acc1, Acc2, Jump;
 volatile signed int X, Y;
 
 void SetupDDS () {
@@ -53,8 +62,8 @@ void CalculateSine () {
 }
 
 void Sine () {
-  Acc1 = Acc1 + Jump; // * Acc1Freq;
-  Acc2 = Acc2 + Jump * Acc2Freq + Acc2Offset;
+  Acc1 = Acc1 + Jump * Acc1Freq;
+  Acc2 = Acc2 + Jump * Acc2Freq + Acc2Offset - 64;
   OCR1A = Sinewave[Acc1>>8] + 128;
   OCR1B = Sinewave[Acc2>>8] + 128;
 }
@@ -66,7 +75,16 @@ ISR(TIM0_COMPA_vect) {
 // Setup **********************************************
 
 void setup() {
-  Acc1Freq, Acc2Freq = 1;
+  pinMode(0, INPUT);
+  pinMode(1, INPUT);
+  pinMode(3, INPUT);
+  for (unsigned int i = 0; i < ReadingsCount; i++) {
+    Acc1FreqReadings[i]   = 0;
+    Acc2FreqReadings[i]   = 0;
+    Acc2OffsetReadings[i] = 0;
+  }
+  Acc1Freq = 1;
+  Acc2Freq = 1;
   Acc2Offset = 0;
   Freq = 100;
   CalculateSine();
@@ -76,9 +94,27 @@ void setup() {
 
 // Everything done by interrupts
 void loop() {
-  /* Acc1Freq = analogRead(1) >> 6; */
+  Acc1FreqTotal   = Acc1FreqTotal   - Acc1FreqReadings[readIndex];
+  Acc2FreqTotal   = Acc2FreqTotal   - Acc2FreqReadings[readIndex];
+  Acc2OffsetTotal = Acc2OffsetTotal - Acc2OffsetReadings[readIndex];
+
+  Acc1FreqReadings[readIndex] = analogRead(1) >> 6;
+  Acc1FreqTotal = Acc1FreqTotal + Acc1FreqReadings[readIndex];
+  Acc1Freq = Acc1FreqTotal / ReadingsCount;
+
   // offset as it's on the reset pin and we need to keep that above ~2.2v
-  Acc2Freq = (analogRead(0) - 675) >> 5;
-  Acc2Offset = (analogRead(3) >> 3) - 64;
+  Acc2FreqReadings[readIndex] = (analogRead(0) - 675) >> 5;
+  Acc2FreqTotal = Acc2FreqTotal + Acc2FreqReadings[readIndex];
+  Acc2Freq = Acc2FreqTotal / ReadingsCount;
+
+  Acc2OffsetReadings[readIndex] = analogRead(3) >> 3;
+  Acc2OffsetTotal = Acc2OffsetTotal + Acc2OffsetReadings[readIndex];
+  Acc2Offset = Acc2OffsetTotal / ReadingsCount;
+
+  readIndex++;
+  if (readIndex >= ReadingsCount) {
+    readIndex = 0;
+  }
+
   delay(100);
 }
