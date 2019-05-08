@@ -13,9 +13,11 @@
 #define NOINIT __attribute__ ((section (".noinit")))
 
 // Don't initialise these on reset
+int Wave NOINIT;
 unsigned int Freq NOINIT;
 int8_t Sinewave[256] NOINIT;
 
+typedef void (*wavefun_t)();
 
 const unsigned int ReadingsCount = 10;
 unsigned int readIndex = 0;
@@ -62,14 +64,49 @@ void CalculateSine () {
 }
 
 void Sine () {
-  Acc1 = Acc1 + Jump * Acc1Freq;
-  Acc2 = Acc2 + Jump * Acc2Freq + Acc2Offset - 64;
   OCR1A = Sinewave[Acc1>>8] + 128;
   OCR1B = Sinewave[Acc2>>8] + 128;
 }
 
+void Sawtooth () {
+  OCR1A = Acc1 >> 8;
+  OCR1B = Acc2 >> 8;
+}
+
+void Triangle () {
+  int8_t temp, mask;
+  temp = Acc1>>8;
+  mask = temp>>7;
+  temp = temp ^ mask;
+  OCR1A = temp<<1;
+  temp = Acc2>>8;
+  mask = temp>>7;
+  temp = temp ^ mask;
+  OCR1B = temp<<1;
+}
+
+void Chainsaw () {
+  int8_t temp, mask, top;
+  temp = Acc1>>8;
+  mask = temp>>7;
+  top = temp & 0x80;
+  temp = (temp ^ mask) | top;
+  OCR1A = temp;
+  temp = Acc2>>8;
+  mask = temp>>7;
+  top = temp & 0x80;
+  temp = (temp ^ mask) | top;
+  OCR1B = temp;
+}
+
+const int nWaves = 4;
+wavefun_t Waves[nWaves] = {Sine, Triangle, Sawtooth, Chainsaw};
+wavefun_t Wavefun;
+
 ISR(TIM0_COMPA_vect) {
-  Sine();
+  Acc1 = Acc1 + Jump * Acc1Freq;
+  Acc2 = Acc2 + Jump * Acc2Freq + Acc2Offset - 64;
+  Wavefun();
 }
 
 // Setup **********************************************
@@ -87,6 +124,8 @@ void setup() {
   Acc2Freq = 1;
   Acc2Offset = 0;
   Freq = 100;
+  Wave = 0;
+  Wavefun = Waves[Wave];
   CalculateSine();
   SetupDDS();
   Jump = Freq*4;
